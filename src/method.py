@@ -84,11 +84,11 @@ def optimize_svr(X_total_train, Y_train, X_total_test, Y_test, n_iter_search=30)
     '''    
     best_mse = -1
     best_param = {}
-    for C in [1e-4, 1e-7, 1e-10]:
-        for tol in [1e-5, 1e-3]:    
-            for epsilon in [0.1, 0.5]:
-                for degree in [1, 2, 3]:
-                    for gamma in [1e-8, 1e-4, 0.1]:
+    for C in [1e6, 1e5, 1e4, 1e3, 1e1, 1, 1e-1]:
+        for tol in [1e-5]:    
+            for epsilon in [0.1]:
+                for degree in [1, 2]:
+                    for gamma in [1e-3]:
                         mse = involk_svr(X_total_train, Y_train, X_total_test, Y_test, C, tol, epsilon, degree, gamma)
                         if mse < best_mse or best_mse == -1:
                             best_mse = mse
