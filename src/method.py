@@ -20,14 +20,12 @@ def topic_from_LDA(X_train, X_test, n_topics, n_iter, alpha=0.1, eta=0.01):
 
 def topic_from_LSI(X_train, X_test, n_topics):
     X_train_sparse = scipy.sparse.csr_matrix(X_train.T)
-    U, S, V = scipy.sparse.linalg.svds(X_train_sparse)
-    S_hat = np.diag(S[:n_topics])
-    U_hat = U[:, :n_topics]
-    S_hat_inverse = np.linalg.inv(S_hat)
+    U_hat, S_hat, V_hat = scipy.sparse.linalg.svds(X_train_sparse, k=n_topics)
+    S_hat_inverse = np.linalg.inv(np.diag(S_hat))
     new_train = np.dot(S_hat_inverse, np.dot(U_hat.T, X_train.T))
     new_test = np.dot(S_hat_inverse, np.dot(U_hat.T, X_test.T))
     
-    return new_train.T, new_test.T
+    return new_train.T, new_test.T, S_hat
 
 def combine_extra_to_train(extra, train):
     if type(train) == scipy.sparse.csr.csr_matrix:
@@ -50,7 +48,7 @@ def dtm_to_tfidf(X_train, X_test):
 def dtm_to_log1p(X_train, X_test):
     return np.log(X_train + 1), np.log(X_test + 1)
 
-def involk_svr(X_total_train, Y_train, X_total_test, Y_test, C=math.pow(2,-10), tol=1e-5, epsilon=0.1, degree=1, gamma=1e-8):
+def involk_svr(X_total_train, Y_train, X_total_test, Y_test, C=math.pow(2,-10), tol=1e-5, epsilon=0.1, degree=1, gamma=1e-2):
     svr_poly = SVR(kernel='poly', C=C,epsilon=epsilon, degree=degree, gamma=gamma, tol=tol)
     svr_poly.fit(X_total_train, Y_train)
     result = svr_poly.predict(X_total_test)

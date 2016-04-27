@@ -6,6 +6,15 @@ import time
 from sklearn.preprocessing import scale
 from ptm import HMM_LDA
 
+# Standard test function
+def do_svr(name, X_train, Y_train, X_test, Y_test, optimize, degree, C):
+    if optimize:
+        mse_V, params = optimize_svr(X_train, Y_train, X_test, Y_test)
+        print('SVR params: ' + str(params))
+    else:
+        mse_V = involk_svr(X_train, Y_train, X_test, Y_test, degree=degree, C=C)
+    print('mse_V_' + name + ': ' + str(mse_V))
+
 # os.chdir('/Users/hengweiguo/Documents/repo/volatility-prediction/src')
 #
 #
@@ -33,21 +42,22 @@ from ptm import HMM_LDA
 
 
 # Getting back the objects:
-do_extra_original = 0
+do_extra_original = 1
 scaleData = 0
 withextra = 0
 
 test_differ = 0
 
-lda_test = 1
+lda_test = 0
+lsi_test = 0
 hmm_lda_test = 0
 standard_test = 1
-optimize = 0
+optimize = 1
 
 print "Test Differ Status:"
 print test_differ
 
-npzfile = np.load('train_test_data_1.npz')
+npzfile = np.load('train_test_data_01.npz')
 X_train_extra = npzfile['X_train_extra']
 X_train = npzfile['X_train'] # doc term mat
 Y_train = npzfile['Y_train'] # doc term mat
@@ -118,7 +128,15 @@ if hmm_lda_test:
 #    model = tmpData[4]
 #    del tmpData
 
-X_train_lsi, X_test_lsi = topic_from_LSI(X_train, X_test, 20)
+X_train_lsi, X_test_lsi, ev = topic_from_LSI(X_train, X_test, 120)
+
+
+# Analysis of LSI
+#for i in [30,60,90,120,150,180,210,240]:
+#    print "Number of Topics: " + str(i)
+#    current_eigen = np.sum(ev[500 - i:])
+#    all_eigen = np.sum(ev)
+#    print "Percentage of Variance: " + str(current_eigen / all_eigen)
 
 if standard_test:
     tfidf_train, tfidf_test = dtm_to_tfidf(X_train, X_test)
@@ -129,7 +147,7 @@ else:
 if do_extra_original and standard_test:
     tf_train, tf_test = dtm_to_tf(X_train, X_test)
     log1p_train, log1p_test = dtm_to_log1p(X_train, X_test)
-    X_train_lsi_log1p, X_test_lsi_log1p = topic_from_LSI(log1p_train, log1p_test, 20)
+    X_train_lsi_log1p, X_test_lsi_log1p, _ = topic_from_LSI(log1p_train, log1p_test, 120)
 else:
     tf_train = 0
     tf_test = 0
@@ -142,6 +160,7 @@ if scaleData:
     # can't do with_mean=True with sparse matrix
     tf_train = scale(tf_train, with_mean=False)
     tf_test = scale(tf_test, with_mean=False)
+    print "Percentage of Variance: " + str(np.divide(np.sum(ev[:i]), np.sum(ev)))
     tfidf_train = scale(tfidf_train, with_mean=False)
     tfidf_test = scale(tfidf_test, with_mean=False)
     log1p_train = scale(log1p_train, with_mean=False)
@@ -210,21 +229,19 @@ t1 = time.time()
 print('mse_V_minus_12 takes time: ' + str(t1 - t0))
 print('mse_V_minus_12: ' + str(mse_V_minus_12))
 
-# Standard test function
-def do_svr(name, X_train, Y_train, X_test, Y_test, optimize, degree, C):
-    if optimize:
-        mse_V, params = optimize_svr(X_train, Y_train, X_test, Y_test)
-        print('SVR params: ' + str(params))
-    else:
-        mse_V = involk_svr(X_train, Y_train, X_test, Y_test, degree=degree, C=C)
-    print('mse_V_' + name + ': ' + str(mse_V))
+# Train LSI and test it
+if lsi_test:
+    for n_topics in [30, 60, 90, 120, 150, 180, 210, 240]:
+        X_train_lsi, X_test_lsi, ev = topic_from_LSI(X_train, X_test, n_topics)
+        do_svr('lsi', X_train_lsi, Y_train, X_test_lsi, Y_test, optimize, 1, 1e3)
+        print('n_topics = ' + str(n_topics))
+        print('=========================================')
 
 # Train LDA and test it
-
 if lda_test:
     n_topics = 20
     n_iter = 1000
-    for n_topics in [6, 15, 30]:
+    for n_topics in [40, 55, 70]:
         for alpha in [0.001, 0.1]:
             for eta in [0.05, 0.1]:
                 # Best alpha = 0.001
@@ -233,8 +250,7 @@ if lda_test:
                 X_total_train_lda, X_total_test_lda, lda_model = topic_from_LDA(X_train, X_test, n_topics, n_iter, alpha, eta)
                 t1 = time.time()
                 print('lda takes time: ' + str(t1 - t0))
-                mse_V_lda, _ = do_svr(X_total_train_lda, Y_train, X_total_test_lda, Y_test, optimize, 2, 1e5)
-                print('mse_V_lda: ' + str(mse_V_lda))
+                do_svr('lda', X_total_train_lda, Y_train, X_total_test_lda, Y_test, optimize, 2, 1e5)
                 print('n_topics = ' + str(n_topics))
                 print('alpha = ' + str(alpha))
                 print('eta = ' + str(eta))
@@ -242,21 +258,21 @@ if lda_test:
                 del lda_model
 
 # Test All
-
 if standard_test:
     if lda_test:
-        do_svr('lda', X_total_train_lda, Y_train, X_total_test_lda, Y_test, optimize, 2, 1e5)
+        do_svr('lda', X_total_train_lda, Y_train, X_total_test_lda, Y_test, optimize, 2, 1e6)
 
     if hmm_lda_test:    
         do_svr('hmm_lda', X_train_hmm_lda, Y_train, X_test_hmm_lda, Y_test, optimize, 2, 1e4)
     
-    do_svr('lsi', X_total_train_lsi, Y_train, X_total_test_lsi, Y_test, optimize, 2, 1e4)
-    do_svr('tfidf', X_total_train_tfidf, Y_train, X_total_test_tfidf, Y_test, optimize, 1, 1e5)
+    do_svr('lsi', X_total_train_lsi, Y_train, X_total_test_lsi, Y_test, optimize, 1, 1e3)
+    do_svr('tc', X_train, Y_train, X_test, Y_test, optimize, 1, 1)
+    do_svr('tfidf', X_total_train_tfidf, Y_train, X_total_test_tfidf, Y_test, optimize, 1, 1e6)
     
     if do_extra_original: 
         do_svr('tf', X_total_train_tf, Y_train, X_total_test_tf, Y_test, optimize, 1, 1)
         do_svr('log1p', X_total_train_log1p, Y_train, X_total_test_log1p, Y_test, optimize, 1, 1)
-        do_svr('lsi_log1p', X_total_train_lsi_log1p, Y_train, X_total_test_lsi_log1p, Y_test, optimize, 2, 1e4)
+        do_svr('lsi_log1p', X_total_train_lsi_log1p, Y_train, X_total_test_lsi_log1p, Y_test, optimize, 1, 1e3)
     
     # train and test with HMM-LDA
     # t0 = time.time()
