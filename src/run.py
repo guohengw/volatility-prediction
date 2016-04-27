@@ -42,22 +42,22 @@ def do_svr(name, X_train, Y_train, X_test, Y_test, optimize, degree, C):
 
 
 # Getting back the objects:
-do_extra_original = 1
+do_extra_original = 0
 scaleData = 0
 withextra = 0
 
 test_differ = 0
 
-lda_test = 0
+lda_test = 1
 lsi_test = 0
 hmm_lda_test = 0
-standard_test = 1
-optimize = 1
+standard_test = 0
+optimize = 0
 
 print "Test Differ Status:"
 print test_differ
 
-npzfile = np.load('train_test_data_01.npz')
+npzfile = np.load('train_test_data_1.npz')
 X_train_extra = npzfile['X_train_extra']
 X_train = npzfile['X_train'] # doc term mat
 Y_train = npzfile['Y_train'] # doc term mat
@@ -240,10 +240,10 @@ if lsi_test:
 # Train LDA and test it
 if lda_test:
     n_topics = 20
-    n_iter = 1000
-    for n_topics in [40, 55, 70]:
-        for alpha in [0.001, 0.1]:
-            for eta in [0.05, 0.1]:
+    n_iter = 300
+    for n_topics in [60, 90, 30]:
+        for alpha in [0.001]:
+            for eta in [0.1]:
                 # Best alpha = 0.001
                 # Best eta = 0.05
                 t0 = time.time()
@@ -260,7 +260,7 @@ if lda_test:
 # Test All
 if standard_test:
     if lda_test:
-        do_svr('lda', X_total_train_lda, Y_train, X_total_test_lda, Y_test, optimize, 2, 1e6)
+        do_svr('lda', X_total_train_lda, Y_train, X_total_test_lda, Y_test, optimize, 1, 1e6)
 
     if hmm_lda_test:    
         do_svr('hmm_lda', X_train_hmm_lda, Y_train, X_test_hmm_lda, Y_test, optimize, 2, 1e4)
